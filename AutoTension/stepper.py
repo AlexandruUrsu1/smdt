@@ -6,6 +6,7 @@
 #
 # Modifications:
 # 2022-06, Reinhard: Move high-level functionality to autotension_gui
+#          Alexandru: Abort when user presses "Esc"
 import math
 
 import nidaqmx
@@ -115,6 +116,11 @@ class Stepper:
             if abs(target - measured) < tolerance:
                 done = True
                 self.hold(target, tolerance, 1, callback)
+            if(keyboard.is_pressed("Esc")):
+                done = True
+                self.pause(self)
+                return 0
+        return 1
         #self.read_task.stop()
         #self.step_task.stop()
 
