@@ -356,7 +356,7 @@ class MainWindow(QtWidgets.QMainWindow):
         stepper.resume()
         stride = 5
         result = stepper.step_to(300, 10, callback=self.update_ext_tension)
-        result = stepper.step_to(target, 5, callback=self.update_ext_tension)
+        result = stepper.step_to(target, 10, callback=self.update_ext_tension)
         stepper.pause()
         self.update_status("Measuring internal tension")
         tension, frequency =  self.tension_device.get_tension()
@@ -401,7 +401,7 @@ class MainWindow(QtWidgets.QMainWindow):
         stepper.resume()
         stride = 5
         result = stepper.step_to(300, 10, callback=self.update_ext_tension)
-        result = stepper.step_to(target, 5, callback=self.update_ext_tension)
+        result = stepper.step_to(target, 10, callback=self.update_ext_tension)
         stepper.pause()
         self.update_status("Measuring internal tension")
         tension, frequency =  self.tension_device.get_tension()
@@ -492,7 +492,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     stepper.resume()
                     stride = 5
                     result = stepper.step_to(300, 10, callback=self.update_ext_tension)
-                    result = stepper.step_to(312, 5, callback=self.update_ext_tension)
+                    result = stepper.step_to(target, 10, callback=self.update_ext_tension)
                     stepper.pause()
                     self.update_status("Measuring internal tension")
                     tension, frequency =  self.tension_device.get_tension()
@@ -504,7 +504,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     stepper.resume()
                     stride = 5
                     result = stepper.step_to(300, 10, callback=self.update_ext_tension)
-                    result = stepper.step_to(332, 5, callback=self.update_ext_tension)
+                    result = stepper.step_to(target, 10, callback=self.update_ext_tension)
                     stepper.pause()
                     self.update_status("Measuring internal tension")
                     tension, frequency =  self.tension_device.get_tension()
