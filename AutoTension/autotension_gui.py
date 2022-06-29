@@ -423,7 +423,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.db.add_tube(newTube)
                 self.update_status("Done")
             else:
-                self.update_status("Invalid tension, press \"Get Tension\"")
+                self.update_status("Invalid tension, press \"Get Tension\" or try again")
         else:
             self.update_status("Cancelled, no tension saved")
 
