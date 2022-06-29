@@ -468,14 +468,15 @@ class MainWindow(QtWidgets.QMainWindow):
         tension, frequency =  self.tension_device.get_tension()
         self.update_int_tension(tension)
 
+        check = 0
         if(result == 1):
-            while(True):
+            while(check == 0):
                 if( (tension > 1000) or (tension < 100) ):
                     self.update_status("Recalculating...")
                     tension, frequency =  self.tension_device.get_tension()
                     self.update_int_tension(tension)
                 else:
-                    break
+                    check = 1
 
         if(result == 1):
             if(tension > 322.00):
