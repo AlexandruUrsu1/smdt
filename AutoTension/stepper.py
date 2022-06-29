@@ -6,14 +6,17 @@
 #
 # Modifications:
 # 2022-06, Reinhard: Move high-level functionality to autotension_gui
+#          Alexandru: Abort when user presses "Esc"
+#
 import math
-
+import keyboard
 import nidaqmx
 import time
 import matplotlib.pyplot as plt
 import numpy as np
 
 from nidaqmx.constants import TerminalConfiguration, AcquisitionType
+from win32gui import GetWindowText, GetForegroundWindow
 
 def V_to_g(V):
     return V * 100
@@ -67,6 +70,8 @@ class Stepper:
         self.noise_reduction = noise_reduction
         self.stride = stride
         self.isPaused = False
+        self.current_window = (GetWindowText(GetForegroundWindow()))
+        self.desired_window_name = "Tension"
 
     def __del__(self):
         self.read_task.stop()
@@ -115,6 +120,12 @@ class Stepper:
             if abs(target - measured) < tolerance:
                 done = True
                 self.hold(target, tolerance, 1, callback)
+            if(keyboard.is_pressed("Esc")):
+                done = True
+                self.pause(self)
+                return 0
+        return 1
+
         #self.read_task.stop()
         #self.step_task.stop()
 
@@ -131,11 +142,13 @@ class Stepper:
                 callback(measured)
             if abs(target - measured) < tolerance and time0 == math.inf:
                 time0 = time.time()
+            if(keyboard.is_pressed("Esc")):
+                self.pause(self)
+                return 0
+        return 1
 
         #self.read_task.stop()
         #self.step_task.stop()
-
-
 
 if __name__ == '__main__':
     with nidaqmx.Task() as read_task, nidaqmx.Task() as step_task:
@@ -163,4 +176,3 @@ if __name__ == '__main__':
             else:
                 step_task.write(7)
                 step_task.write(6)
-
