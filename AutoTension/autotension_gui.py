@@ -443,6 +443,7 @@ class MainWindow(QtWidgets.QMainWindow):
             n_samp=n_samp,
             plotter=Plotter(self.plot_title, self.plot_x_label, self.plot_y_label))
 
+        self.int_tension.setText("Not yet measured")
         self.update_status("Beginning at zero")
         stepper.resume()
         result = stepper.step_to(0, 10, callback=self.update_ext_tension)
