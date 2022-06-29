@@ -509,7 +509,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     tension, frequency =  self.tension_device.get_tension()
                     self.update_int_tension(tension)
                 else:
-                    check = 1
+                    check2 = 1
 
         if(result == 1):
             if( (tension > 100) and (tension < 1000) ):
