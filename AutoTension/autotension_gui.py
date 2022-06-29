@@ -478,29 +478,31 @@ class MainWindow(QtWidgets.QMainWindow):
                 else:
                     check = 1
 
+        check2 = 0
         if(result == 1):
-            if(tension > 322.00):
-                self.update_status("Decreasing Tension")
-                stepper.resume()
-                stride = 5
-                result = stepper.step_to(300, 10, callback=self.update_ext_tension)
-                result = stepper.step_to(312, 5, callback=self.update_ext_tension)
-                stepper.pause()
-                self.update_status("Measuring internal tension")
-                tension, frequency =  self.tension_device.get_tension()
-                self.update_int_tension(tension)
-            elif(tension < 309.00):
-                self.update_status("Increasing Tension")
-                stepper.resume()
-                stride = 5
-                result = stepper.step_to(300, 10, callback=self.update_ext_tension)
-                result = stepper.step_to(332, 5, callback=self.update_ext_tension)
-                stepper.pause()
-                self.update_status("Measuring internal tension")
-                tension, frequency =  self.tension_device.get_tension()
-                self.update_int_tension(tension)
-            else:
-                pass
+            while(check2 == 0):
+                if( (tension > 322.00) and (tension < 340.00) ):
+                    self.update_status("Decreasing Tension")
+                    stepper.resume()
+                    stride = 5
+                    result = stepper.step_to(300, 10, callback=self.update_ext_tension)
+                    result = stepper.step_to(312, 5, callback=self.update_ext_tension)
+                    stepper.pause()
+                    self.update_status("Measuring internal tension")
+                    tension, frequency =  self.tension_device.get_tension()
+                    self.update_int_tension(tension)
+                elif( (tension > 290.00) and (tension < 309.00) ):
+                    self.update_status("Increasing Tension")
+                    stepper.resume()
+                    stride = 5
+                    result = stepper.step_to(300, 10, callback=self.update_ext_tension)
+                    result = stepper.step_to(332, 5, callback=self.update_ext_tension)
+                    stepper.pause()
+                    self.update_status("Measuring internal tension")
+                    tension, frequency =  self.tension_device.get_tension()
+                    self.update_int_tension(tension)
+                else:
+                    check = 1
 
         if(result == 1):
             if( (tension > 100) and (tension < 1000) ):
