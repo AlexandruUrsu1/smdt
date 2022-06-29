@@ -1,4 +1,3 @@
-#
 # Updated tensioner program to work with the motorized tension setup
 # Paul Johnecheck
 # April 2022
