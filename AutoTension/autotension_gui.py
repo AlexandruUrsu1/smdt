@@ -479,9 +479,14 @@ class MainWindow(QtWidgets.QMainWindow):
                     check = 1
 
         check2 = 0
+        auto_up = 10
+        auto_down = 10
+        auto_target = 322
         if(result == 1):
             while(check2 == 0):
                 if( (tension > 322.00) and (tension < 340.00) ):
+                    auto_down += 10
+                    auto_target = 322 - auto_down + auto_up
                     self.update_status("Decreasing Tension")
                     stepper.resume()
                     stride = 5
@@ -492,6 +497,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     tension, frequency =  self.tension_device.get_tension()
                     self.update_int_tension(tension)
                 elif( (tension > 290.00) and (tension < 309.00) ):
+                    auto_up += 10
+                    auto_target = 322 - auto_down + auto_up
                     self.update_status("Increasing Tension")
                     stepper.resume()
                     stride = 5
