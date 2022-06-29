@@ -355,7 +355,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_status("Increasing Tension")
         stepper.resume()
         stride = 5
-        result = stepper.step_to(300, 10, callback=self.update_ext_tension)
         result = stepper.step_to(target, 10, callback=self.update_ext_tension)
         stepper.pause()
         self.update_status("Measuring internal tension")
@@ -491,7 +490,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.update_status("Decreasing Tension")
                     stepper.resume()
                     stride = 5
-                    result = stepper.step_to(300, 10, callback=self.update_ext_tension)
                     result = stepper.step_to(target, 10, callback=self.update_ext_tension)
                     stepper.pause()
                     self.update_status("Measuring internal tension")
