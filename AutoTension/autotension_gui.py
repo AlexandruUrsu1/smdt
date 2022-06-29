@@ -236,7 +236,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_int_tension(tension)
 
         if(result == 1):
-            if( (tension > 100) and (tension < 1000) ):
+            if( (tension > 100) and (tension < 500) ):
                 self.user_edit = str(self.combo.currentText())
                 newTube = tube.Tube()
                 newTube.set_ID(self.ID_edit.text().strip())
@@ -296,7 +296,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_int_tension(tension)
 
         if(result == 1):
-            if( (tension > 100) and (tension < 1000) ):
+            if( (tension > 100) and (tension < 500) ):
                 self.user_edit = str(self.combo.currentText())
                 newTube = tube.Tube()
                 newTube.set_ID(self.ID_edit.text().strip())
@@ -323,7 +323,7 @@ class MainWindow(QtWidgets.QMainWindow):
         tension, frequency =  self.tension_device.get_tension()
         self.update_int_tension(tension)
 
-        if( (tension > 100) and (tension < 1000) ):
+        if( (tension > 100) and (tension < 500) ):
             self.user_edit = str(self.combo.currentText())
             newTube = tube.Tube()
             newTube.set_ID(self.ID_edit.text().strip())
@@ -363,7 +363,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_int_tension(tension)
 
         if(result == 1):
-            if( (tension > 100) and (tension < 1000) ):
+            if( (tension > 100) and (tension < 500) ):
                 self.user_edit = str(self.combo.currentText())
                 newTube = tube.Tube()
                 newTube.set_ID(self.ID_edit.text().strip())
@@ -408,7 +408,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_int_tension(tension)
 
         if(result == 1):
-            if( (tension > 100) and (tension < 1000) ):
+            if( (tension > 100) and (tension < 500) ):
                 self.user_edit = str(self.combo.currentText())
                 newTube = tube.Tube()
                 newTube.set_ID(self.ID_edit.text().strip())
@@ -472,7 +472,7 @@ class MainWindow(QtWidgets.QMainWindow):
         check = 0
         if(result == 1):
             while(check == 0):
-                if( (tension > 1000) or (tension < 100) ):
+                if( (tension > 500) or (tension < 100) ):
                     self.update_status("Recalculating...")
                     tension, frequency =  self.tension_device.get_tension()
                     self.update_int_tension(tension)
@@ -513,7 +513,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     check2 = 1
 
         if(result == 1):
-            if( (tension > 100) and (tension < 1000) ):
+            if( (tension > 100) and (tension < 500) ):
                 self.user_edit = str(self.combo.currentText())
                 newTube = tube.Tube()
                 newTube.set_ID(self.ID_edit.text().strip())
