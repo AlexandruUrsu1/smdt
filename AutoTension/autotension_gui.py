@@ -12,10 +12,19 @@
 #                     AI increase/decrease tension added
 #                     Changed requirements for saving data to database for less "false" data
 #
+# 2022-07, Alexandru: Checks for valid name and tube id, program no longer initializes with a name
+#                     Added lots of code to make the program run smoother, though excess code may create longer load times
+#                     Calculate tension multiple times to accomodate for program sometimes being "off" on initial calculation
+#                     Rewrote chunks of program in attempt to concise code
+#                     First chunk of gui update, simple color coding to make certain info more apparent, especially for new users
+#                     Some QoL improvments
+#
 
 import sys
 import os
 import datetime
+import time
+import win32gui
 
 pyside_version = None
 try:
@@ -100,9 +109,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         layout2.addLayout(form_layout)
 
-        self.first_tension_button = QtWidgets.QPushButton()
-        self.first_tension_button.setText("Over-Tension (400)")
-        layout3.addWidget(self.first_tension_button, 0, 0)
+        self.overtension_button = QtWidgets.QPushButton()
+        self.overtension_button.setText("Over-Tension (400)")
+        layout3.addWidget(self.overtension_button, 0, 0)
 
         self.release_button = QtWidgets.QPushButton()
         self.release_button.setText("Release Tension (0)")
@@ -128,9 +137,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tension_down_button.setText("Decrease Tension")
         layout3.addWidget(self.tension_down_button, 1, 2)
 
-        self.first_tension_button.setAutoDefault(True)
+        self.overtension_button.setAutoDefault(True)
 
-        self.first_tension_button.clicked.connect(self.first_tension)
+        self.overtension_button.clicked.connect(self.overtension)
         
         self.release_button.clicked.connect(self.release)
         
@@ -151,8 +160,8 @@ class MainWindow(QtWidgets.QMainWindow):
         label = QtWidgets.QLabel()
         self.addName_button = QtWidgets.QPushButton()
         space1.setText("----------------------------------------------------------------------------------------------")
-        note1.setText("|                           1st Tension: 308.47 - 322.57 |  2nd Tension: 336.99 - 362.97                           |")
-        note2.setText("|                                        Press Esc key to cancel the tension process                                       |")
+        note1.setText("|                           1st Tension: 311.97 - 322.57 |  2nd Tension: 336.99 - 362.97                           |")
+        note2.setText("|                                         Press Esc key to cancel tensioning process                                       |")
         space2.setText("----------------------------------------------------------------------------------------------")
         space1.setAlignment(QtCore.Qt.AlignCenter)
         note1.setAlignment(QtCore.Qt.AlignCenter)
@@ -167,7 +176,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         form_layout2 = QtWidgets.QFormLayout()
         form_layout2.addRow(label, self.addName_button)
-
+        
         layout4.addLayout(form_layout2)
 
         self.addName_button.clicked.connect(self.openFile)
@@ -227,350 +236,371 @@ class MainWindow(QtWidgets.QMainWindow):
             )
         return newTube
 
-    def first_tension(self):
+    def variable_reset(self):
         self.increase = 10
         self.decrease = 10
+
+    def measuring_tension(self, string):
+        self.update_status(string)
+        tension, frequency =  self.tension_device.get_tension()
+        self.update_int_tension(tension)
+        return tension, frequency
+
+    def reset(self):
+        self.int_tension.setText("Not yet measured")
+        self.int_tension.setStyleSheet('background-color: lightgrey')
+        self.status.setStyleSheet('background-color: lightgrey')
+
+    def name_error(self):
+        self.ID_edit.setStyleSheet('background-color: white')
+        self.update_status("Please select a valid name")
+        self.status.setStyleSheet('background-color: lightred')
+
+    def ID_error(self):
+        self.ID_edit.setStyleSheet('background-color: lightred')
+        self.update_status("Please enter a valid tube ID")
+        self.status.setStyleSheet('background-color: lightred')
+
+    def tension_pass(self):
+        self.int_tension.setStyleSheet('background-color: lightgreen')
+        self.status.setStyleSheet('background-color: lightgreen')
+        self.update_status("Done")
+
+    def red(self):
+        self.int_tension.setStyleSheet('background-color: red')
+        self.status.setStyleSheet('background-color: red')
+
+    def yellow(self):
+        self.ID_edit.setStyleSheet('background-color: white')
+        self.status.setStyleSheet('background-color: yellow')
+
+    def overtension(self):
+        self.variable_reset()
         self.tension_device = FourierTension()
         stepper = self.stepper_device()
 
+        self.reset()
         if(str(self.combo.currentText()) != "-Please Select A Name-"):
             if(len(self.ID_edit.text()) == 8):
                 if( (self.ID_edit.text()[0:3] == "MSU") and (self.ID_edit.text()[3:8].isdigit() == True) ):
+                    self.yellow()
                     self.update_status("Tensioning to 400")
-                    result = stepper.step_to(350, 10, callback=self.update_ext_tension)
+                    result = stepper.step_to(400, 5, callback=self.update_ext_tension)
+                    stepper.pause()
                     if(result == 1):
-                        stride = 5
-                        result = stepper.step_to(400, 5, callback=self.update_ext_tension)
-                        stepper.pause()
-                        if(result == 1):
-                            self.update_status("Measuring internal tension")
-                            tension, frequency =  self.tension_device.get_tension()
-                            self.update_int_tension(tension)
+                        tension, frequency = self.measuring_tension("Measuring internal tension")
 
-                            if(( tension > 350) and (tension < 500) ):
-                                self.db.add_tube(self.tube_tension_record(tension, frequency))
-                                self.update_status("Done")
-                            else:
-                                self.update_status("Recalculating...")
-                                tension, frequency =  self.tension_device.get_tension()
-                                self.update_int_tension(tension)
-                                if(( tension > 350) and (tension < 500) ):
-                                    self.db.add_tube(self.tube_tension_record(tension, frequency))
-                                    self.update_status("Done")
-                                else:
-                                    self.update_status("Invalid overtension, check battery or try again")
+                        if(( tension > 350) and (tension < 450) ):
+                            self.db.add_tube(self.tube_tension_record(tension, frequency))
+                            self.tension_pass()
                         else:
-                            self.update_status("Overtension cancelled, no tube data saved")
+                            tension, frequency = self.measuring_tension("Recalculating...")
+                            if(( tension > 350) and (tension < 450) ):
+                                self.db.add_tube(self.tube_tension_record(tension, frequency))
+                                self.tension_pass()
+                            else:
+                                self.red()
+                                self.update_status("Invalid overtension, check battery or try again")
                     else:
                         self.update_status("Overtension cancelled, no tube data saved")
+                        self.reset()
                 else:
-                    self.update_status("Please enter a valid tube ID")
+                    self.ID_error()
             else:
-                self.update_status("Please enter a valid tube ID")
-
-            self.ID_edit.setFocus()
+                self.ID_error()
         else:
-            self.update_status("Please select a valid name")
+            self.name_error()
+
+        self.ID_edit.setFocus()
+        self.ID_edit.selectAll()
 
     def release(self):
-        self.increase = 10
-        self.decrease = 10
+        self.variable_reset()
         stepper = self.stepper_device()
 
+        self.reset()
         if(str(self.combo.currentText()) != "-Please Select A Name-"):
             if(len(self.ID_edit.text()) == 8):
                 if( (self.ID_edit.text()[0:3] == "MSU") and (self.ID_edit.text()[3:8].isdigit() == True) ):
+                    self.yellow()
                     self.update_status("Releasing tension")
-                    stepper.step_to(0, 10, callback=self.update_ext_tension)
-                    self.update_status("Released")
+                    result = stepper.step_to(0, 10, callback=self.update_ext_tension)
+                    stepper.pause()
+                    if(result == 1):
+                        self.tension_pass()
+                    else:
+                        self.update_status("Release tension cancelled")
+                        self.reset()
                 else:
-                    self.update_status("Please enter a valid tube ID")
+                    self.ID_error()
             else:
-                self.update_status("Please enter a valid tube ID")
+                self.ID_error()
         else:
-            self.update_status("Please select a valid name")
+            self.name_error()
+
+        self.ID_edit.setFocus()
+        self.ID_edit.selectAll()
 
     def final_tension(self):
-        self.increase = 10
-        self.decrease = 10
+        self.variable_reset()
         self.tension_device = FourierTension()
         stepper = self.stepper_device()
 
+        self.reset()
         if(str(self.combo.currentText()) != "-Please Select A Name-"):
             if(len(self.ID_edit.text()) == 8):
                 if( (self.ID_edit.text()[0:3] == "MSU") and (self.ID_edit.text()[3:8].isdigit() == True) ):
-                    self.update_status("Tensioning to 319")
-                    result = stepper.step_to(300, 10, callback=self.update_ext_tension)
+                    self.yellow()
+                    self.update_status("Tensioning to 320")
+                    result = stepper.step_to(320, 5, callback=self.update_ext_tension)
+                    stepper.pause()
                     if(result == 1):
-                        stride = 5
-                        result = stepper.step_to(319, 5, callback=self.update_ext_tension)
-                        stepper.pause()
-                        if(result == 1):
-                            self.update_status("Measuring internal tension")
-                            tension, frequency =  self.tension_device.get_tension()
-                            self.update_int_tension(tension)
+                        tension, frequency = self.measuring_tension("Measuring internal tension")
 
+                        if( (tension > 200) and (tension < 400) ):
+                            tension, frequency = self.measuring_tension("Double checking tension")
+                            self.db.add_tube(self.tube_tension_record(tension, frequency))
+                            self.tension_pass()
+                        else:
+                            tension, frequency = self.measuring_tension("Error, recalculating...")
                             if( (tension > 200) and (tension < 400) ):
                                 self.db.add_tube(self.tube_tension_record(tension, frequency))
-                                self.update_status("Done")
+                                self.tension_pass()
                             else:
-                                self.update_status("Recalculating...")
-                                tension, frequency =  self.tension_device.get_tension()
-                                self.update_int_tension(tension)
-                                if( (tension > 200) and (tension < 400) ):
-                                    self.db.add_tube(self.tube_tension_record(tension, frequency))
-                                    self.update_status("Done")
-                                else:
-                                    self.update_status("Invalid tension, press \"Get Tension\" or check battery")
-                        else:
-                            self.update_status("Final tension cancelled, no tube data saved")
+                                self.red()
+                                self.update_status("Invalid final tension, press \"Get Tension\" or check battery")
                     else:
                         self.update_status("Final tension cancelled, no tube data saved")
+                        self.reset()
                 else:
-                    self.update_status("Please enter a valid tube ID")
+                    self.ID_error()
             else:
-                self.update_status("Please enter a valid tube ID")
-
-            self.ID_edit.setFocus()
+                self.ID_error()
         else:
-            self.update_status("Please select a valid name")
+            self.name_error()
+
+        self.ID_edit.setFocus()
+        self.ID_edit.selectAll()
 
     def get_tension(self):
         self.tension_device = FourierTension()
 
+        self.reset()
         if(str(self.combo.currentText()) != "-Please Select A Name-"):
             if(len(self.ID_edit.text()) == 8):
                 if( (self.ID_edit.text()[0:3] == "MSU") and (self.ID_edit.text()[3:8].isdigit() == True) ):
-                    self.update_status("Measuring internal tension")
-                    tension, frequency =  self.tension_device.get_tension()
-                    self.update_int_tension(tension)
+                    self.ID_edit.setStyleSheet('background-color: white')
+                    tension, frequency = self.measuring_tension("Measuring internal tension")
 
                     if( (tension > 200) and (tension < 500) ):
                         self.db.add_tube(self.tube_tension_record(tension, frequency))
+                        self.int_tension.setStyleSheet('background-color: lightgreen')
                         self.update_status("Done. Internal tension is "+str(tension))
+                        self.status.setStyleSheet('background-color: lightgreen')
                     else:
-                        tension, frequency =  self.tension_device.get_tension()
-                        self.update_int_tension(tension)
+                        tension, frequency = self.measuring_tension("Error, recalculating...")
                         if(tension <= 200):
                             self.db.add_tube(self.tube_tension_record(tension, frequency))
+                            self.red()
                             self.update_status("Done. Internal tension low. Wire snap? Check battery?")
                         elif(tension >= 500):
+                            self.red()
                             self.update_status("Invalid tension, check battery?")
                         else:
                             self.db.add_tube(self.tube_tension_record(tension, frequency))
+                            self.int_tension.setStyleSheet('background-color: lightgreen')
                             self.update_status("Done. Internal tension is "+str(tension))
+                            self.status.setStyleSheet('background-color: lightgreen')
                 else:
-                    self.update_status("Please enter a valid tube ID")
+                    self.ID_error()
             else:
-                self.update_status("Please enter a valid tube ID")
-
-            self.ID_edit.setFocus()
-            self.ID_edit.selectAll()
+                self.ID_error()
         else:
-            self.update_status("Please select a valid name")
+            self.name_error()
+
+        self.ID_edit.setFocus()
+        self.ID_edit.selectAll()
 
     def tension_up(self):
         target = 322 + self.increase - self.decrease
         self.tension_device = FourierTension()
         stepper = self.stepper_device()
 
+        self.reset()
         if(str(self.combo.currentText()) != "-Please Select A Name-"):
             if(len(self.ID_edit.text()) == 8):
                 if( (self.ID_edit.text()[0:3] == "MSU") and (self.ID_edit.text()[3:8].isdigit() == True) ):
                     self.increase += 10
-
+                    self.yellow()
                     self.update_status("Increasing Tension")
-                    stride = 5
                     result = stepper.step_to(target, 5, callback=self.update_ext_tension)
                     stepper.pause()
                     if(result == 1):
-                        self.update_status("Measuring internal tension")
-                        tension, frequency =  self.tension_device.get_tension()
-                        self.update_int_tension(tension)
+                        tension, frequency = self.measuring_tension("Measuring internal tension")
 
                         if( (tension > 280.00) and (tension < 350.00) ):
+                            tension, frequency = self.measuring_tension("Double checking tension")
                             self.db.add_tube(self.tube_tension_record(tension, frequency))
-                            self.update_status("Done")
+                            self.tension_pass()
                         else:
+                            self.red()
                             self.update_status("Invalid tension, make sure you are near correct tension range, check battery, or try again")
                     else:
                         self.update_status("Increase tension cancelled, no tube data saved")
+                        self.reset()
                 else:
-                    self.update_status("Please enter a valid tube ID")
+                    self.ID_error()
             else:
-                self.update_status("Please enter a valid tube ID")
-
-            self.ID_edit.setFocus()
+                self.ID_error()
         else:
-            self.update_status("Please select a valid name")
-
-    def tension_down(self):
-        self.decrease += 10
-
-        if(str(self.combo.currentText()) != "-Please Select A Name-"):
-            if(len(self.ID_edit.text()) == 8):
-                if( (self.ID_edit.text()[0:3] == "MSU") and (self.ID_edit.text()[3:8].isdigit() == True) ):
-                    target = 322 + self.increase - self.decrease
-                    self.tension_device = FourierTension()
-                    stepper = self.stepper_device()
-
-                    self.update_status("Decreasing Tension")
-                    stride = 5
-                    result = stepper.step_to(target, 5, callback=self.update_ext_tension)
-                    stepper.pause()
-                    if(result == 1):
-                        self.update_status("Measuring internal tension")
-                        tension, frequency =  self.tension_device.get_tension()
-                        self.update_int_tension(tension)
-
-                        if( (tension > 280.00) and (tension < 350.00) ):
-                            self.db.add_tube(self.tube_tension_record(tension, frequency))
-                            self.update_status("Done")
-                        else:
-                            self.update_status("Invalid tension, make sure you are near correct tension range, or check battery and try again")
-                    else:
-                        self.update_status("Decrease tension cancelled, no tube data saved")
-                else:
-                    self.update_status("Please enter a valid tube ID")
-            else:
-                self.update_status("Please enter a valid tube ID")
-
-            self.ID_edit.setFocus()
-        else:
-            self.update_status("Please select a valid name")
-
-    def autotension(self):
-        check = 0
-        auto_up = 10
-        auto_down = 10
-        auto_target = 322
-        self.increase = 10
-        self.decrease = 10
-        self.tension_device = FourierTension()
-        stepper = self.stepper_device()
-
-        if(str(self.combo.currentText()) != "-Please Select A Name-"):
-            if(len(self.ID_edit.text()) == 8):
-                if( (self.ID_edit.text()[0:3] == "MSU") and (self.ID_edit.text()[3:8].isdigit() == True) ):
-                    self.int_tension.setText("Not yet measured")
-                    self.update_status("Beginning at zero")
-                    result = stepper.step_to(0, 10, callback=self.update_ext_tension)
-                    if(result == 1):
-                        self.update_status("Tensioning to 400")
-                        result = stepper.step_to(350, 10, callback=self.update_ext_tension)
-                        if(result == 1):
-                            stride = 5
-                            result = stepper.step_to(400, 5, callback=self.update_ext_tension)
-                            if(result == 1):
-                                stride = 28
-                                self.update_status("Holding at 400")
-                                result = stepper.hold(400, 5, hold_time=7, callback=self.update_ext_tension)
-                                if(result == 1):
-                                    self.update_status("Tensioning to 0")
-                                    result = stepper.step_to(0, 10, callback=self.update_ext_tension)
-                                    if(result == 1):
-                                        self.update_status("Tensioning to 319")
-                                        result = stepper.step_to(300, 10, callback=self.update_ext_tension)
-                                        if(result == 1):
-                                            stride = 5
-                                            result = stepper.step_to(319, 5, callback=self.update_ext_tension)
-                                            if(result == 1):
-                                                self.update_status("Holding at 319")
-                                                result = stepper.hold(319, 5, hold_time=2, callback=self.update_ext_tension)
-                                                if(result == 1):
-                                                    stepper.pause()
-                                                    self.update_status("Measuring internal tension")
-                                                    tension, frequency =  self.tension_device.get_tension()
-                                                    self.update_int_tension(tension)
-
-                                                    if( (tension > 200) and (tension < 500) ):
-                                                        check = 0
-                                                    else:
-                                                        self.update_status("Recalculating...")
-                                                        tension, frequency =  self.tension_device.get_tension()
-                                                        self.update_int_tension(tension)
-                                                        if( ( tension > 200) and (tension < 500) ):
-                                                            check = 0
-                                                        else:
-                                                            check = 1
-                                                            self.update_status("Invalid tension, check battery or try again")
-
-                                                    while(check == 0):
-                                                        if( (tension > 322.57) and (tension < 350.00) ):
-                                                            auto_down += 10
-                                                            auto_target = 322 - auto_down + auto_up
-                                                            self.update_status("Decreasing Tension")
-                                                            stride = 5
-                                                            result = stepper.step_to(auto_target, 10, callback=self.update_ext_tension)
-                                                            stepper.pause()
-                                                            if(result == 1):
-                                                                self.update_status("Measuring internal tension")
-                                                                tension, frequency =  self.tension_device.get_tension()
-                                                                self.update_int_tension(tension)
-                                                            else:
-                                                                check = 1
-                                                                self.update_status("Autotension cancelled, no tube data saved")
-                                                        elif( (tension > 280.00) and (tension < 308.47) ):
-                                                            auto_up += 10
-                                                            auto_target = 322 - auto_down + auto_up
-                                                            self.update_status("Increasing Tension")
-                                                            stride = 5
-                                                            result = stepper.step_to(auto_target, 10, callback=self.update_ext_tension)
-                                                            stepper.pause()
-                                                            if(result == 1):
-                                                                self.update_status("Measuring internal tension")
-                                                                tension, frequency =  self.tension_device.get_tension()
-                                                                self.update_int_tension(tension)
-                                                            else:
-                                                                check = 1
-                                                                self.update_status("Autotension cancelled, no tube data saved")
-                                                        else:
-                                                            check = 1
-
-                                                    if(result == 1):
-                                                        self.update_status("Rechecking tension...")
-                                                        tension, frequency =  self.tension_device.get_tension()
-                                                        self.update_int_tension(tension)
-                                                        if( (tension > 200) and (tension < 500) ):
-                                                            self.db.add_tube(self.tube_tension_record(tension, frequency))
-                                                            self.update_status("Done")
-                                                            self.ID_edit.setFocus()
-                                                            self.ID_edit.selectAll()
-                                                        else:
-                                                            self.update_status("Invalid tension, check battery or try again")
-                                                        self.ID_edit.setFocus()
-                                                        self.ID_edit.selectAll()
-                                                    else:
-                                                        self.update_status("Autotension cancelled, no tube data saved")
-                                                else:
-                                                    self.update_status("Autotension cancelled, no tube data saved")
-                                            else:
-                                                self.update_status("Autotension cancelled, no tube data saved")
-                                        else:
-                                            self.update_status("Autotension cancelled, no tube data saved")
-                                    else:
-                                        self.update_status("Autotension cancelled, no tube data saved")
-                                else:
-                                    self.update_status("Autotension cancelled, no tube data saved")
-                            else:
-                                self.update_status("Autotension cancelled, no tube data saved")
-                        else:
-                            self.update_status("Autotension cancelled, no tube data saved")
-                    else:
-                        self.update_status("Autotension cancelled, no tube data saved")
-                else:
-                    self.update_status("Please enter a valid tube ID")
-                self.ID_edit.setFocus()
-                self.ID_edit.selectAll()
-            else:
-                self.update_status("Please enter a valid tube ID")
-            self.ID_edit.setFocus()
-            self.ID_edit.selectAll()
-        else:
-            self.update_status("Please select a valid name")
+            self.name_error()
 
         self.ID_edit.setFocus()
         self.ID_edit.selectAll()
+
+    def tension_down(self):
+        target = 322 + self.increase - self.decrease
+        self.tension_device = FourierTension()
+        stepper = self.stepper_device()
+
+        self.reset()
+        if(str(self.combo.currentText()) != "-Please Select A Name-"):
+            if(len(self.ID_edit.text()) == 8):
+                if( (self.ID_edit.text()[0:3] == "MSU") and (self.ID_edit.text()[3:8].isdigit() == True) ):
+                    self.decrease += 10
+                    self.yellow()
+                    self.update_status("Decreasing Tension")
+                    result = stepper.step_to(target, 5, callback=self.update_ext_tension)
+                    stepper.pause()
+                    if(result == 1):
+                        tension, frequency = self.measuring_tension("Measuring internal tension")
+
+                        if( (tension > 280.00) and (tension < 350.00) ):
+                            tension, frequency = self.measuring_tension("Double checking tension")
+                            self.db.add_tube(self.tube_tension_record(tension, frequency))
+                            self.tension_pass()
+                        else:
+                            self.red()
+                            self.update_status("Invalid tension, make sure you are near correct tension range, or check battery and try again")
+                    else:
+                        self.update_status("Decrease tension cancelled, no tube data saved")
+                        self.reset()
+                else:
+                    self.ID_error()
+            else:
+                self.ID_error()
+        else:
+            self.name_error()
+
+        self.ID_edit.setFocus()
+        self.ID_edit.selectAll()
+
+    def autotension(self):
+        check = 0
+        check1 = 0
+        self.variable_reset()
+        target = 319 + self.increase - self.decrease
+        self.tension_device = FourierTension()
+        stepper = self.stepper_device()
+
+        self.reset()
+        if(str(self.combo.currentText()) != "-Please Select A Name-"):
+            if(len(self.ID_edit.text()) == 8):
+                if( (self.ID_edit.text()[0:3] == "MSU") and (self.ID_edit.text()[3:8].isdigit() == True) ):
+                    self.yellow()
+                    self.update_status("Tensioning to 400")
+                    result = stepper.step_to(410, 10, callback=self.update_ext_tension)
+                    if(result == 1):
+                        self.update_status("Holding at 400")
+                        result = stepper.hold(410, 20, hold_time=10, callback=self.update_ext_tension)
+                        if(result == 1):
+                            self.update_status("Tensioning to 0")
+                            result = stepper.step_to(0, 5, callback=self.update_ext_tension)
+                            if(result == 1):
+                                self.update_status("Tensioning to 315")
+                                result = stepper.step_to(319, 5, callback=self.update_ext_tension)
+                                if(result == 1):
+                                    self.update_status("Holding at 315")
+                                    result = stepper.hold(319, 10, hold_time=2, callback=self.update_ext_tension)
+                                    stepper.pause()
+                                    if(result == 1):
+                                        tension, frequency = self.measuring_tension("Measuring internal tension")
+
+                                        if( (tension > 200) and (tension < 500) ):
+                                            check = 0
+                                        else:
+                                            tension, frequency = self.measuring_tension("Error, recalculating...")
+                                            if( ( tension > 200) and (tension < 500) ):
+                                                check = 0
+                                            else:
+                                                check1 = 2
+                                                self.red()
+                                                self.update_status("Invalid tension, check battery or try again")
+
+                                        while(check == 0):
+                                            if( (tension > 322.57) and (tension < 350.00) ):
+                                                self.decrease += 10
+                                                target = 319 - self.decrease + self.increase
+                                                self.update_status("Decreasing Tension")
+                                                result = stepper.step_to(target, 5, callback=self.update_ext_tension)
+                                                stepper.pause()
+                                                if(result == 1):
+                                                    tension, frequency = self.measuring_tension("Measuring internal tension")
+                                                else:
+                                                    check = 1
+                                                    self.update_status("Autotension cancelled, no tube data saved")
+                                                    self.reset()
+                                            elif( (tension > 280.00) and (tension < 311.97) ):
+                                                self.increase += 10
+                                                target = 319 - self.decrease + self.increase
+                                                self.update_status("Increasing Tension")
+                                                result = stepper.step_to(target, 5, callback=self.update_ext_tension)
+                                                stepper.pause()
+                                                if(result == 1):
+                                                    tension, frequency = self.measuring_tension("Measuring internal tension")
+                                                else:
+                                                    check = 1
+                                                    self.update_status("Autotension cancelled, no tube data saved")
+                                                    self.reset()
+                                            else:
+                                                check = 1
+
+                                        if(result == 1):
+                                            if(check1 != 2):
+                                                if( (tension > 200) and (tension < 500) ):
+                                                    tension, frequency = self.measuring_tension("Double checking tension")
+                                                    self.db.add_tube(self.tube_tension_record(tension, frequency))
+                                                    self.tension_pass()
+                                                    win32gui.SetForegroundWindow(win32gui.FindWindow(None, "AutoTension"))
+                                                    self.ID_edit.setFocus()
+                                                    self.ID_edit.selectAll()
+                                                else:
+                                                    self.red()
+                                                    self.update_status("Invalid tension, check battery or try again")
+                                        else:
+                                            self.update_status("Autotension cancelled, no tube data saved")
+                                            self.reset()
+                                    else:
+                                        self.update_status("Autotension cancelled, no tube data saved")
+                                        self.reset()
+                                else:
+                                    self.update_status("Autotension cancelled, no tube data saved")
+                                    self.reset()
+                            else:
+                                self.update_status("Autotension cancelled, no tube data saved")
+                                self.reset()
+                        else:
+                            self.update_status("Autotension cancelled, no tube data saved")
+                            self.reset()
+                    else:
+                        self.update_status("Autotension cancelled, no tube data saved")
+                        self.reset()
+                else:
+                    self.ID_error()
+            else:
+                self.ID_error()
+        else:
+            self.name_error()
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication()
